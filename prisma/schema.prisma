@@ -1,0 +1,168 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @default("Sonny")
+  createdAt DateTime @default(now())
+
+  workoutLogs     WorkoutLog[]
+  nutritionLogs   NutritionLog[]
+  healthMetrics   HealthMetric[]
+  medicationLogs  MedicationLog[]
+  scheduleCompletions ScheduleCompletion[]
+}
+
+model Workout {
+  id          Int      @id @default(autoincrement())
+  name        String   // e.g., "Workout #1", "Workout #2"
+  version     String   @default("A") // A, B, or C
+  description String?
+  createdAt   DateTime @default(now())
+
+  exercises   WorkoutExercise[]
+  workoutLogs WorkoutLog[]
+}
+
+model Exercise {
+  id          Int      @id @default(autoincrement())
+  name        String
+  muscleGroup String   // chest, shoulders, back, biceps, triceps, legs, core
+  method      String   // RPT, KinoRep, RestPause, Standard
+  notes       String?
+
+  workoutExercises WorkoutExercise[]
+  setLogs          SetLog[]
+}
+
+model WorkoutExercise {
+  id         Int      @id @default(autoincrement())
+  workoutId  Int
+  exerciseId Int
+  orderIndex Int      // Order in the workout
+  targetSets Int
+  targetRepsMin Int   // e.g., 4 for 4-6 range
+  targetRepsMax Int   // e.g., 6 for 4-6 range
+  restSeconds Int     @default(180)
+
+  workout  Workout  @relation(fields: [workoutId], references: [id])
+  exercise Exercise @relation(fields: [exerciseId], references: [id])
+}
+
+model WorkoutLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  workoutId Int
+  date      DateTime @default(now())
+  notes     String?
+  completed Boolean  @default(false)
+
+  user    User    @relation(fields: [userId], references: [id])
+  workout Workout @relation(fields: [workoutId], references: [id])
+  setLogs SetLog[]
+}
+
+model SetLog {
+  id           Int      @id @default(autoincrement())
+  workoutLogId Int
+  exerciseId   Int
+  setNumber    Int
+  weight       Float
+  reps         Int
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  workoutLog WorkoutLog @relation(fields: [workoutLogId], references: [id])
+  exercise   Exercise   @relation(fields: [exerciseId], references: [id])
+}
+
+model Meal {
+  id       Int    @id @default(autoincrement())
+  name     String
+  calories Int
+  protein  Int
+  carbs    Int
+  fats     Int
+  category String @default("custom") // breakfast, lunch, dinner, snack, custom
+
+  nutritionLogs NutritionLog[]
+}
+
+model NutritionLog {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  mealId   Int
+  date     DateTime @default(now())
+  servings Float    @default(1)
+
+  user User @relation(fields: [userId], references: [id])
+  meal Meal @relation(fields: [mealId], references: [id])
+}
+
+model HealthMetric {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  date      DateTime @default(now())
+  type      String   // weight, waist, vitamin_d, alt, glucose, testosterone, etc.
+  value     Float
+  unit      String   // lbs, inches, ng/mL, U/L, mg/dL, ng/dL
+  notes     String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Medication {
+  id     Int    @id @default(autoincrement())
+  name   String
+  dose   String
+  timing String // morning, evening, with_food, before_bed
+  type   String // medication, supplement
+
+  medicationLogs MedicationLog[]
+}
+
+model MedicationLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  medicationId Int
+  date         DateTime @default(now())
+  taken        Boolean  @default(false)
+
+  user       User       @relation(fields: [userId], references: [id])
+  medication Medication @relation(fields: [medicationId], references: [id])
+
+  @@unique([userId, medicationId, date])
+}
+
+model ScheduleBlock {
+  id        Int    @id @default(autoincrement())
+  day       String // Monday, Tuesday, etc.
+  startTime String // e.g., "06:30"
+  endTime   String // e.g., "07:30"
+  title     String
+  type      String // work, class, workout, meal, personal, sleep
+
+  completions ScheduleCompletion[]
+}
+
+model ScheduleCompletion {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  blockId   Int
+  date      DateTime
+  completed Boolean  @default(false)
+
+  user  User          @relation(fields: [userId], references: [id])
+  block ScheduleBlock @relation(fields: [blockId], references: [id])
+
+  @@unique([userId, blockId, date])
+}
